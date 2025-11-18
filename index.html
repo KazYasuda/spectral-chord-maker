@@ -224,13 +224,13 @@
             <button onclick="setPresetSymmetric()">Preset: Symmetric Ex.</button>
             <button onclick="setPresetKraft()">Preset: "Kraft"</button>
             <button onclick="setPresetMarea()">Preset: "Marea"</button>
-            <button class="primary" onclick="calculateSpectrum()">Find Fundamental</button>
+            <button class="primary" onclick="calculateSpectrum()">Create PSC</button>
             <button onclick="playInput()">Play Input</button>
             <button onclick="playFullSpectrum()">Play Full Spectrum</button>
         </div>
 
         <div class="analysis-output" id="output">
-            Select notes on the piano (or use a preset) and click "Find Fundamental".
+            Select notes on the piano (or use a preset) and click "Create PSC".
             <br>Tip: Use "Enforce Symmetry" to filter spectral notes that don't have a partner.
         </div>
         
@@ -283,7 +283,7 @@
             fundamentalNote = null;
             missingNotes.clear();
             currentAxis = null;
-            document.getElementById('output').innerHTML = "Analysis cleared. Click 'Find Fundamental' to recalculate.";
+            document.getElementById('output').innerHTML = "Analysis cleared. Click 'Create PSC' to recalculate.";
             drawSpectrum();
         }
 
@@ -477,21 +477,21 @@
             [60, 64, 67, 71].forEach(n => selectedNotes.add(n));
             renderKeys();
             document.getElementById('symmetryMode').checked = true;
-            document.getElementById('output').innerText = "Loaded Symmetrical Chord (C4-E4-G4-B4). Click Find Fundamental.";
+            document.getElementById('output').innerText = "Loaded Symmetrical Chord (C4-E4-G4-B4). Click Create PSC.";
         }
 
         function setPresetKraft() {
             clearAll();
             [38, 45, 51, 65, 71, 78].forEach(n => selectedNotes.add(n));
             renderKeys();
-            document.getElementById('output').innerText = "Loaded 'Kraft' Texture. Try finding fundamental.";
+            document.getElementById('output').innerText = "Loaded 'Kraft' Texture. Try clicking Create PSC.";
         }
 
         function setPresetMarea() {
             clearAll();
             [48, 55, 60, 64, 70, 74].forEach(n => selectedNotes.add(n));
             renderKeys();
-            document.getElementById('output').innerText = "Loaded 'Marea' Texture. Try finding fundamental.";
+            document.getElementById('output').innerText = "Loaded 'Marea' Texture. Try clicking Create PSC.";
         }
 
         // --- AUDIO & CANVAS ---
