@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Spectral Engine">
+    <title>Lindberg Spectral Engine</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --panel-color: #1e1e1e;
+            --text-color: #e0e0e0;
+            --accent-color: #00bcd4;
+            --input-color: #3f51b5; /* Blue */
+            --fundamental-color: #f44336; /* Red */
+            --missing-color: #ffc107; /* Gold */
+            --axis-color: #00e676; /* Green */
+            --white-key: #dddddd;
+            --black-key: #333333;
+            --warn-color: #ff5722;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        h1 { margin-bottom: 5px; font-weight: 300; letter-spacing: 2px; }
+        h3 { margin-top: 0; font-weight: 400; color: #888; font-size: 0.9rem; }
+
+        .main-container {
+            background-color: var(--panel-color);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            max-width: 900px;
+            width: 100%;
+        }
+
+        /* Controls */
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #2a2a2a;
+            padding: 8px 15px;
+            border-radius: 6px;
+            border: 1px solid #444;
+            cursor: pointer;
+        }
+        .checkbox-container:hover { background: #333; }
+
+        input[type="checkbox"] {
+            accent-color: var(--accent-color);
+            transform: scale(1.2);
+            cursor: pointer;
+        }
+
+        button {
+            background-color: #333;
+            color: white;
+            border: 1px solid #555;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        button:hover { background-color: #444; border-color: #777; }
+        button.primary { background-color: var(--accent-color); color: #000; border: none; font-weight: bold; }
+        button.primary:hover { background-color: #00acc1; }
+
+        /* Legend */
+        .legend {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 15px;
+            font-size: 0.85rem;
+        }
+        .legend-item { display: flex; align-items: center; gap: 5px; }
+        .dot { width: 12px; height: 12px; border-radius: 50%; }
+        .line-legend { width: 20px; height: 3px; }
+
+        /* Piano Scroll */
+        .piano-container {
+            position: relative;
+            height: 180px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            background: #111;
+            border: 1px solid #444;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            /* Custom Scrollbar */
+            scrollbar-width: thin;
+            scrollbar-color: #555 #222;
+        }
+
+        .piano-keys {
+            display: flex;
+            height: 100%;
+            padding-bottom: 20px; /* space for scrollbar */
+            position: relative;
+        }
+
+        .key {
+            position: relative;
+            flex-shrink: 0;
+            border: 1px solid #555;
+            border-top: none;
+            border-radius: 0 0 4px 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding-bottom: 10px;
+            user-select: none;
+            font-size: 10px;
+            color: #777;
+            transition: background-color 0.1s;
+        }
+
+        .key.white {
+            width: 36px;
+            height: 100%;
+            background-color: var(--white-key);
+            z-index: 1;
+        }
+
+        .key.black {
+            width: 24px;
+            height: 65%;
+            background-color: var(--black-key);
+            margin-left: -12px;
+            margin-right: -12px;
+            z-index: 2;
+            color: #aaa;
+        }
+
+        /* Key States */
+        .key.selected { background-color: var(--input-color) !important; color: white; box-shadow: 0 0 10px var(--input-color); }
+        .key.fundamental { background-color: var(--fundamental-color) !important; color: white; box-shadow: 0 0 15px var(--fundamental-color); border: 1px solid white; }
+        .key.missing { opacity: 0.9; background-image: linear-gradient(to bottom, rgba(255, 193, 7, 0.3), var(--missing-color)) !important; color: black; }
+        
+        /* Info Panel */
+        .analysis-output {
+            background: #181818;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid var(--accent-color);
+            min-height: 100px;
+            font-family: 'Courier New', Courier, monospace;
+            white-space: pre-wrap;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        .warning-text {
+            color: var(--warn-color);
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .spectral-chart {
+            width: 100%;
+            height: 150px;
+            background: #000;
+            margin-top: 10px;
+            border-radius: 4px;
+            position: relative;
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>LINDBERG SPECTRAL ENGINE</h1>
+    <h3>Virtual Fundamental Finder & Symmetry Generator</h3>
+
+    <div class="main-container">
+        
+        <div class="legend">
+            <div class="legend-item"><div class="dot" style="background: var(--input-color)"></div> Input</div>
+            <div class="legend-item"><div class="dot" style="background: var(--fundamental-color)"></div> Fundamental</div>
+            <div class="legend-item"><div class="dot" style="background: var(--missing-color)"></div> Missing</div>
+            <div class="legend-item"><div class="line-legend" style="background: var(--axis-color)"></div> Axis</div>
+        </div>
+
+        <div class="piano-container" id="pianoScroll">
+            <div class="piano-keys" id="piano">
+                <!-- Keys generated by JS -->
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="checkbox-container">
+                <input type="checkbox" id="symmetryMode">
+                <label for="symmetryMode">Enforce Symmetry</label>
+            </div>
+            <button onclick="clearAll()">Clear</button>
+            <button onclick="setPresetSymmetric()">Preset: Symmetric Ex.</button>
+            <button onclick="setPresetKraft()">Preset: "Kraft"</button>
+            <button onclick="setPresetMarea()">Preset: "Marea"</button>
+            <button class="primary" onclick="calculateSpectrum()">Find Fundamental</button>
+            <button onclick="playInput()">Play Input</button>
+            <button onclick="playFullSpectrum()">Play Full Spectrum</button>
+        </div>
+
+        <div class="analysis-output" id="output">
+            Select notes on the piano (or use a preset) and click "Find Fundamental".
+            <br>Tip: Use "Enforce Symmetry" to filter spectral notes that don't have a partner.
+        </div>
+        
+        <canvas id="spectralCanvas" class="spectral-chart" width="860" height="150"></canvas>
+
+    </div>
+
+    <script>
+        // Configuration
+        const START_NOTE = 24; // C1
+        const END_NOTE = 96;   // C7
+        const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+        
+        // State
+        let selectedNotes = new Set(); // MIDI numbers
+        let fundamentalNote = null;
+        let missingNotes = new Set();
+        let currentAxis = null; 
+        
+        // Initialize UI
+        const pianoEl = document.getElementById('piano');
+        
+        function initPiano() {
+            pianoEl.innerHTML = '';
+            for (let i = START_NOTE; i <= END_NOTE; i++) {
+                const isBlack = [1, 3, 6, 8, 10].includes(i % 12);
+                const key = document.createElement('div');
+                key.className = `key ${isBlack ? 'black' : 'white'}`;
+                key.dataset.note = i;
+                key.innerText = i % 12 === 0 ? 'C' + (Math.floor(i/12)-1) : '';
+                key.onclick = () => toggleNote(i);
+                pianoEl.appendChild(key);
+            }
+            setTimeout(() => {
+                document.getElementById('pianoScroll').scrollLeft = 300;
+            }, 100);
+        }
+
+        function toggleNote(midi) {
+            if (selectedNotes.has(midi)) {
+                selectedNotes.delete(midi);
+            } else {
+                selectedNotes.add(midi);
+            }
+            resetAnalysisDisplay();
+            renderKeys();
+        }
+
+        function resetAnalysisDisplay() {
+            fundamentalNote = null;
+            missingNotes.clear();
+            currentAxis = null;
+            document.getElementById('output').innerHTML = "Analysis cleared. Click 'Find Fundamental' to recalculate.";
+            drawSpectrum();
+        }
+
+        function renderKeys() {
+            document.querySelectorAll('.key').forEach(key => {
+                const note = parseInt(key.dataset.note);
+                key.className = `key ${[1, 3, 6, 8, 10].includes(note % 12) ? 'black' : 'white'}`;
+                
+                if (selectedNotes.has(note)) {
+                    key.classList.add('selected');
+                } else if (fundamentalNote === note) {
+                    key.classList.add('fundamental');
+                } else if (missingNotes.has(note)) {
+                    key.classList.add('missing');
+                }
+            });
+        }
+
+        function clearAll() {
+            selectedNotes.clear();
+            resetAnalysisDisplay();
+            renderKeys();
+        }
+
+        // --- THE LINDBERG ALGORITHM ---
+
+        function mtof(midi) { return 440 * Math.pow(2, (midi - 69) / 12); }
+        function ftom(freq) { return 69 + (12 * Math.log2(freq / 440)); }
+        function getNoteName(midi) { return NOTE_NAMES[midi % 12] + (Math.floor(midi/12)-1); }
+
+        function calculateSpectrum() {
+            if (selectedNotes.size < 2) {
+                document.getElementById('output').innerText = "Please select at least 2 notes to analyze.";
+                return;
+            }
+
+            const inputs = Array.from(selectedNotes).sort((a, b) => a - b);
+            const inputFreqs = inputs.map(mtof);
+            const lowestInput = inputs[0];
+            const highestInput = inputs[inputs.length - 1];
+            
+            // Axis Calculation:
+            // Inversional Axis is the midpoint between the outer bounds of the set
+            const symmetryAxis = (lowestInput + highestInput) / 2;
+            const symmetrySum = lowestInput + highestInput; // note + mirror = sum
+            currentAxis = symmetryAxis;
+            
+            const enforceSymmetry = document.getElementById('symmetryMode').checked;
+
+            // 1. FIND FUNDAMENTAL
+            let bestFundamental = null;
+            let bestScore = -Infinity;
+
+            // We search fundamentals below the chord
+            for (let cand = 12; cand < lowestInput; cand++) {
+                const fundFreq = mtof(cand);
+                let score = 0;
+                let matches = 0;
+
+                inputFreqs.forEach(freq => {
+                    let partialNum = Math.round(freq / fundFreq);
+                    if (partialNum < 1) partialNum = 1;
+                    let expectedFreq = fundFreq * partialNum;
+                    let semitoneDiff = Math.abs(ftom(freq) - ftom(expectedFreq));
+
+                    // Tolerance 0.4 semitones
+                    if (semitoneDiff < 0.4) { 
+                        matches++;
+                        // Score favors lower partials (simpler ratios) and better intonation
+                        score += (10 - semitoneDiff) - (partialNum * 0.15);
+                    }
+                });
+                
+                // Weight by coverage of input notes
+                score = score * (matches / inputs.length);
+                
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestFundamental = cand;
+                }
+            }
+
+            if (!bestFundamental) {
+                document.getElementById('output').innerText = "No strong fundamental found. Try a more consonant grouping.";
+                return;
+            }
+
+            // 2. GENERATE CANDIDATE PARTIALS
+            fundamentalNote = bestFundamental;
+            missingNotes.clear();
+            
+            const fundFreq = mtof(bestFundamental);
+            let rawPartials = [];
+            let partialsToDisplay = [];
+
+            // Generate theoretical spectrum
+            for (let p = 1; p <= 32; p++) {
+                let pFreq = fundFreq * p;
+                let pMidi = Math.round(ftom(pFreq));
+                if (pMidi >= START_NOTE && pMidi <= END_NOTE) {
+                    rawPartials.push({ partial: p, midi: pMidi });
+                }
+            }
+
+            // "Universe" of available notes = Fixed Inputs + Available Partials
+            let allowedUniverse = new Set(inputs);
+            rawPartials.forEach(p => allowedUniverse.add(p.midi));
+
+            // 3. FILTER & VALIDATE
+            let validPairs = []; // To track symmetry for report
+            let orphans = [];    // Track inputs that have no mirror
+
+            // Filter Generated Partials
+            rawPartials.forEach(p => {
+                if (selectedNotes.has(p.midi)) {
+                    partialsToDisplay.push({ ...p, inInput: true });
+                    return;
+                }
+
+                let shouldAdd = true;
+                if (enforceSymmetry) {
+                    let mirror = symmetrySum - p.midi;
+                    // Only add this spectral note if its mirror exists in our Universe
+                    if (!allowedUniverse.has(mirror)) {
+                        shouldAdd = false;
+                    }
+                }
+
+                if (shouldAdd) {
+                    missingNotes.add(p.midi);
+                    partialsToDisplay.push({ ...p, inInput: false });
+                }
+            });
+
+            // Final Verification Step (For Reporting)
+            const finalSet = new Set([...selectedNotes, ...missingNotes]);
+            const finalArr = Array.from(finalSet).sort((a,b)=>a-b);
+            
+            finalArr.forEach(n => {
+                let mirror = symmetrySum - n;
+                if (finalSet.has(mirror)) {
+                    if (n <= mirror) { // Avoid duplicates in report
+                        validPairs.push([n, mirror]);
+                    }
+                } else {
+                    orphans.push(n);
+                }
+            });
+
+            // Update UI
+            renderKeys();
+            displayResults(bestFundamental, inputs, missingNotes, enforceSymmetry, symmetryAxis, validPairs, orphans);
+            drawSpectrum(partialsToDisplay, symmetryAxis);
+        }
+
+        function displayResults(fund, inputs, missing, symmetrical, axis, validPairs, orphans) {
+            let text = `ANALYSIS COMPLETE\n`;
+            text += `-----------------\n`;
+            text += `VIRTUAL FUNDAMENTAL: ${getNoteName(fund)}\n`;
+            text += `AXIS OF SYMMETRY: ${axis.toFixed(1)} (Between ${getNoteName(Math.floor(axis))} and ${getNoteName(Math.ceil(axis))})\n`;
+
+            if (symmetrical) {
+                text += `\nSYMMETRICAL PAIRS FOUND:\n`;
+                if (validPairs.length > 0) {
+                    validPairs.forEach(pair => {
+                        if(pair[0] === pair[1]) text += `• ${getNoteName(pair[0])} (Center)\n`;
+                        else text += `• ${getNoteName(pair[0])} ↔ ${getNoteName(pair[1])}\n`;
+                    });
+                } else {
+                    text += `(No valid symmetrical pairs found in this spectrum)\n`;
+                }
+
+                if (orphans.length > 0) {
+                     text += `\nWARNING: ASYMMETRY DETECTED!\n`;
+                     text += `The following notes have no mirror partner in the set:\n`;
+                     text += orphans.map(getNoteName).join(", ");
+                     text += `\n(The selected Fundamental's spectrum does not contain the necessary mirror notes to balance the input.)`;
+                }
+            } else {
+                text += `\nSUGGESTED ADDITIONS (Spectral): ${Array.from(missing).map(getNoteName).join(", ")}\n`;
+                text += `(Enable 'Enforce Symmetry' to filter for mirrors)`;
+            }
+
+            document.getElementById('output').innerText = text;
+        }
+
+        // --- PRESETS ---
+        function setPresetSymmetric() {
+            // The User's Example: C4, E4, G4, B4
+            clearAll();
+            [60, 64, 67, 71].forEach(n => selectedNotes.add(n));
+            renderKeys();
+            document.getElementById('symmetryMode').checked = true;
+            document.getElementById('output').innerText = "Loaded Symmetrical Chord (C4-E4-G4-B4). Click Find Fundamental.";
+        }
+
+        function setPresetKraft() {
+            clearAll();
+            [38, 45, 51, 65, 71, 78].forEach(n => selectedNotes.add(n));
+            renderKeys();
+            document.getElementById('output').innerText = "Loaded 'Kraft' Texture. Try finding fundamental.";
+        }
+
+        function setPresetMarea() {
+            clearAll();
+            [48, 55, 60, 64, 70, 74].forEach(n => selectedNotes.add(n));
+            renderKeys();
+            document.getElementById('output').innerText = "Loaded 'Marea' Texture. Try finding fundamental.";
+        }
+
+        // --- AUDIO & CANVAS ---
+        async function playInput() {
+            await Tone.start();
+            const poly = new Tone.PolySynth(Tone.Synth).toDestination();
+            poly.volume.value = -10;
+            selectedNotes.forEach(n => poly.triggerAttackRelease(Tone.Frequency(n, "midi"), "0.5", Tone.now()));
+        }
+
+        async function playFullSpectrum() {
+            if (!fundamentalNote) return;
+            await Tone.start();
+            const now = Tone.now();
+            
+            // Fundamental
+            const fund = new Tone.Synth().toDestination();
+            fund.volume.value = -5;
+            fund.triggerAttackRelease(Tone.Frequency(fundamentalNote, "midi"), "1.5", now);
+
+            // Input
+            const poly = new Tone.PolySynth(Tone.Synth).toDestination();
+            poly.volume.value = -12;
+            selectedNotes.forEach(n => poly.triggerAttackRelease(Tone.Frequency(n, "midi"), "1", now + 0.1));
+
+            // Missing
+            const shimmer = new Tone.PolySynth(Tone.FMSynth).toDestination();
+            shimmer.volume.value = -18;
+            let delay = 0.2;
+            missingNotes.forEach(n => {
+                shimmer.triggerAttackRelease(Tone.Frequency(n, "midi"), "0.5", now + delay);
+                delay += 0.05;
+            });
+        }
+
+        function drawSpectrum(partials = [], axis = null) {
+            const canvas = document.getElementById('spectralCanvas');
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+            ctx.clearRect(0, 0, w, h);
+            
+            // Baseline
+            ctx.strokeStyle = '#444';
+            ctx.beginPath(); ctx.moveTo(0, h-10); ctx.lineTo(w, h-10); ctx.stroke();
+
+            const mapX = (midi) => ((midi - START_NOTE) / (END_NOTE - START_NOTE)) * w;
+
+            // Axis
+            if (axis) {
+                const ax = mapX(axis);
+                ctx.strokeStyle = '#00e676';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([4, 4]);
+                ctx.beginPath(); ctx.moveTo(ax, 0); ctx.lineTo(ax, h); ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.fillStyle = '#00e676';
+                ctx.font = "12px monospace";
+                ctx.fillText("AXIS", ax + 5, 15);
+            }
+
+            // Fundamental
+            if (fundamentalNote) {
+                const fx = mapX(fundamentalNote);
+                ctx.fillStyle = '#f44336';
+                ctx.fillRect(fx-2, h-80, 4, 70);
+                ctx.fillText("F0", fx-5, h-85);
+            }
+
+            // Partials
+            partials.forEach(p => {
+                const x = mapX(p.midi);
+                if (x < 0 || x > w) return;
+                const amp = 80 / Math.sqrt(p.partial);
+                
+                if (p.inInput) {
+                    ctx.fillStyle = '#3f51b5';
+                    ctx.fillRect(x-2, h-10-amp, 4, amp);
+                } else {
+                    ctx.fillStyle = '#ffc107';
+                    ctx.fillRect(x-1, h-10-(amp*0.8), 2, amp*0.8);
+                }
+            });
+        }
+
+        initPiano();
+    </script>
+</body>
+</html>
